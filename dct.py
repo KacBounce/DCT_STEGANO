@@ -6,7 +6,7 @@ import threading
 
 
 # Load the stego-image
-image = cv2.imread('stego_image.jpeg', cv2.IMREAD_GRAYSCALE)  # Load as grayscale 
+image = cv2.imread('Lenna(test_image).png', cv2.IMREAD_GRAYSCALE)  # Load as grayscale 
 hidden = cv2.imread('hidden.jpg', cv2.IMREAD_GRAYSCALE)
 
 dct_image = cv2.dct(np.float32(image))
@@ -46,6 +46,19 @@ def zero_length(set):
         else:
             return length
     return length
+
+def highest_non_zero(set):
+    for i in range(len(set)):
+        if (set[i] != 0):
+            index = i
+    return index
+
+def all_zeros(set):
+    for i in range(len(set)):
+        if (set[i] > 0):
+            return False
+    return True
+
 
 def get_blocks(image):
     blocks = []
@@ -182,17 +195,19 @@ def hide_message(sets):
     set_array = []
     binary_message = "010101010110101101110010011110010111010001100001001000000111011101101001011000010110010001101111011011010110111101110011011000110010000001101110011100100010000000110001"
     binary_array = [int(bit) for bit in binary_message]
-    print(binary_array)
     counter = 0
 
     for i in sets:
         for j in i:
             set_array.append(i[j])
     
+    
     for i in set_array:
         if (counter < len(binary_array)):
             last_zero = zero_length(i)
-            if (last_zero >= 2):
+
+            #main data hiding algorithm
+            if (last_zero >= 2):                                
                 if (binary_array[counter] == 1):
                     secret = random.randint(0, 1)
                     i[last_zero - 2] = 1 if secret == 1 else -1
@@ -200,6 +215,32 @@ def hide_message(sets):
                     i[last_zero - 2] = 0
                 counter = counter + 1
 
+            #in case of Ambiguous condition A
+                if(i[last_zero - 2] == 0 and (i[last_zero - 1] == 1 or i[last_zero - 1] == -1)):
+                
+                    if (i[last_zero - 1] > 0):
+                        i[last_zero - 1] += 1
+                    else:
+                        i[last_zero - 1] -= 1
+            
+            #in case of Ambiguous condition B
+            if ((i[0] == 1 or i[0] == -1) and i[1] == 0):
+
+                if (i[0] > 0):
+                    i[0] += 1
+                else:
+                    i[0] -= 1
+
+            #in case of Ambiguous condition C
+            if (i[0] == 0 and (i[1] == 1 or i[1] == -1) and i[2] == 0):
+
+                if (i[1] > 0):
+                    i[1] += 1
+                else:
+                    i[1] -= 1
+            
+
+ 
     return set_array
 
 
@@ -275,39 +316,44 @@ def encrypt():
 encrypt()
 
 def get_message(sets):
+    received_message = ""
     set_array = []
-    binary_message = "010101010110101101110010011110010111010001100001001000000111011101101001011000010110010001101111011011010110111101110011011000110010000001101110011100100010000000110001"
-    binary_array = [int(bit) for bit in binary_message]
-    counter = 0
 
     for i in sets:
+        #print(i)
         for j in i:
             set_array.append(i[j])
-    received_message = ""
-
-    for i in set_array:
-        print(i)
-        if (counter < len(binary_array)):
-            last_zero = zero_length(i)
-            if (last_zero >= 2):
-                print('Last0 : ',last_zero,"\n-2 : ", i[last_zero - 2])
-                if ((i[last_zero - 2] == 1) or (i[last_zero - 2] == -1)):
+    x = 0
+    for i in set_array:    
+        if (x < 117):
+            if (not all_zeros(i)):
+                index = highest_non_zero(i)
+                #print(index," ",len(i))
+                if ((i[index - 1] == 1 or i[index - 1] == -1) and i[index] == 0):
                     received_message += "1"
-                    print(1)
-                elif (i[last_zero - 2] == 0):
+                    x += 1
+                elif (((i[index - 1] == 1 or i[index - 1] == -1) and i[index] != 0 and i[index - 3] == 0)
+                    or ((i[index - 1] != 1 and i[index - 1] != -1) and i[index - 2] and i[index - 3] == 0)):
                     received_message += "0"
-                    print(0)
-                counter = counter + 1
+                    x += 1
+            else:
+                received_message += "0"
+                x += 1
+
     return received_message
+
+            
         
 
 
 def decrypt():
     blocks = get_blocks(hidden)
     sets = get_sets_from_blocks(blocks)
+    for i in sets:
+        print(i)
 
     x = get_message(sets)
 
-    print(x)
+    #print("WHAT: ", x)
 
 decrypt()
