@@ -1,13 +1,19 @@
 import cv2
 import numpy as np
 import random
-import threading
+import base64
 
 
 
 # Load the stego-image
 image = cv2.imread('Lenna(test_image).png', cv2.IMREAD_GRAYSCALE)  # Load as grayscale 
 hidden = cv2.imread('hidden.jpg', cv2.IMREAD_GRAYSCALE)
+max_msg_length = 16
+binary_message = '01010101000010110100001001101001011100000110000100100000001101100000100101100001000001000100001101101001011001100111000101100000001000000100111000110010000'
+#binary_message = ''.join(format(ord(i), '08b') for i in binary_message)
+print(binary_message)
+binary_array = [int(bit) for bit in binary_message]
+msg_length = len(binary_array)
 
 dct_image = cv2.dct(np.float32(image))
 
@@ -48,6 +54,7 @@ def zero_length(set):
     return length
 
 def highest_non_zero(set):
+    index = -1
     for i in range(len(set)):
         if (set[i] != 0):
             index = i
@@ -193,22 +200,68 @@ def get_image_from_blocks(blocks):
     # 'reconstructed_image' now contains the image reconstructed from the blocks
     return reconstructed_image
 
+def BinaryToDecimal(binary):
+    decimal, i = 0, 0
+    while(binary != 0):
+        dec = binary % 10
+        decimal = decimal + dec * pow(2, i)
+        binary = binary//10
+        i += 1
+    return (decimal)   
+
+def bin_to_str(bin_data):
+    bin_data = bin_data.replace(" ", "")
+    binary_bytes = int(bin_data, 2).to_bytes((len(bin_data) + 7) // 8, byteorder='big')
+    str_data = base64.b64encode(binary_bytes).decode('utf-8')
+    return str_data
+
+def int_to_bin(int):
+    bin = ''
+    while(int > 0):
+        if(int % 2 == 0):
+            bin += '0'
+        else:
+            bin += '1'
+        int = int // 2
+    return bin[::-1]
+
 def hide_message(sets):
     set_array = []
-    binary_message = "010101010110101101110010011110010111010001100001001000000111011101101001011000010110010001101111011011010110111101110011011000110010000001101110011100100010000000110001"
-    binary_array = [int(bit) for bit in binary_message]
+    x = int_to_bin(msg_length)
+    msg_length_bin = [int(bit) for bit in x]
     counter = 0
+    
+    print(binary_array, msg_length_bin)
+    
 
     for i in sets:
         for j in i:
             set_array.append(i[j])
-    
-    
-    for i in set_array:
+        
+    x = 0
+    for i in set_array:     
         if (not all_zeros(i)):
             if (counter < len(binary_array)):
                 last_zero = zero_length(i)
                 if (last_zero >= 2):
+                    if((i[last_zero - 1] == 1 or i[last_zero - 1] == -1) and i[last_zero] == 0):
+                        if (i[last_zero - 1] > 0):
+                            i[last_zero - 1] += 1
+                        else:
+                            i[last_zero - 1] -= 1 
+                                
+                    if ((i[0] == -1 or i[0] == 1) and i[1] == 0):
+                        if (i[0] > 0):
+                            i[0] += 1
+                        else:
+                            i[0] -= 1
+                    
+                    if ((i[1] == -1 or i[1] == 1) and i[0] == 0 and i[2] == 0):
+                        if (i[1] > 0):
+                            i[1] += 1
+                        else:
+                            i[1] -= 1
+                                                  
                     if (binary_array[counter] == 1):
                         secret = random.randint(0, 1)
                         i[last_zero - 2] = 1 if secret == 1 else -1
@@ -225,9 +278,6 @@ def encrypt():
     counter = 0
 
     set_array = hide_message(sets)
-    
-    for i in range(10):
-        print(sets[i])
 
     for i in blocks:
         set_array[counter].reverse()
@@ -274,15 +324,13 @@ def encrypt():
         for x in range(0,4):
             i[x+4,x] = set_array[counter][x]
         counter = counter + 1  
-        
-    for i in range(5):
-        print(blocks[i])
 
     dequantized_blocks = dequantize_blocks(blocks)
     image_with_info = get_image_from_blocks(dequantized_blocks)
     dct_image_with_info = cv2.dct(np.float32(image_with_info))
 
     cv2.imshow('hidden', image_with_info)
+    cv2.imshow('original', image)
 
     cv2.imshow('dct normal', dct_image)
     cv2.imshow('dct hidden', dct_image_with_info)
@@ -299,30 +347,24 @@ def get_message(sets):
     set_array = []
 
     for i in sets:
-        #print(i)z
         for j in i:
             set_array.append(i[j])
-            
-    for i in range(5):
-        print(sets[i])
-    x = 0
+
+    z = 0
     for i in set_array:    
-        if (x < 155):
-            if (not all_zeros(i)):
+            if (z < msg_length):
                 index = highest_non_zero(i)
-                print(index,"",len(i),i[index])
-                if (index < len(i) - 1):
-                    print(i[index]," ",i[index+1])
-                    if ((i[index] == 1 or i[index] == -1) and i[index + 1] == 0):
-                        received_message += "1"
-                        x += 1
-                elif (((i[index - 1] == 1 or i[index - 1] == -1) and i[index] != 0 and i[index - 3] == 0)
-                    or ((i[index - 1] != 1 and i[index - 1] != -1) and i[index - 2] and i[index - 3] == 0)):
+                if (index != -1):
+                    if (index < len(i) - 1):
+                        if ((i[index] == 1 or i[index] == -1) and i[index + 1] == 0):
+                            received_message += "1"
+                            z += 1
+                    else:
+                        received_message += "0"
+                        z += 1                    
+                else:
                     received_message += "0"
-                    x += 1
-            else:
-                received_message += "0"
-                x += 1
+                    z += 1                  
 
     return received_message
 
@@ -332,13 +374,11 @@ def get_message(sets):
 
 def decrypt():
     blocks = get_blocks(hidden, 1)
-    for i in range(5):
-        print(blocks[i])
     sets = get_sets_from_blocks(blocks)
+
+    bin = get_message(sets)
     
 
-    x = get_message(sets)
-
-    print("WHAT: ", x)
+    print("Secret message : ", bin)
 
 decrypt()
