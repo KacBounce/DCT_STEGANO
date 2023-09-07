@@ -55,12 +55,12 @@ def highest_non_zero(set):
 
 def all_zeros(set):
     for i in range(len(set)):
-        if (set[i] > 0):
+        if (set[i] != 0):
             return False
     return True
 
 
-def get_blocks(image):
+def get_blocks(image, do):
     blocks = []
 
     for i in range(num_blocks_height):
@@ -70,9 +70,11 @@ def get_blocks(image):
             
             # Perform DCT on the block
             dct_block = cv2.dct(np.float32(block))
-
-            # Quantize the DCT coefficients using the quantization matrix
-            quantized_dct_block = np.round(dct_block / (Q * (quality / 50)))
+            if (do):
+                quantized_dct_block = np.round(dct_block / (DQ * (quality / 50)))
+            else:            
+                # Quantize the DCT coefficients using the quantization matrix
+                quantized_dct_block = np.round(dct_block / (Q * (quality / 50)))
 
             blocks.append(quantized_dct_block)
     return blocks
@@ -157,7 +159,7 @@ def dequantize_blocks(blocks):
     # Loop through the quantized blocks and dequantize them
     for quantized_block in blocks:
         # Dequantize the block using the quantization matrix and quality factor
-        dequantized_block = quantized_block * (Q * (quality / 50))
+        dequantized_block = quantized_block * (DQ * (quality / 50))
         
         # Perform the inverse DCT on the dequantized block
         dequantized_block = cv2.idct(np.float32(dequantized_block))
@@ -203,54 +205,29 @@ def hide_message(sets):
     
     
     for i in set_array:
-        if (counter < len(binary_array)):
-            last_zero = zero_length(i)
-
-            #main data hiding algorithm
-            if (last_zero >= 2):                                
-                if (binary_array[counter] == 1):
-                    secret = random.randint(0, 1)
-                    i[last_zero - 2] = 1 if secret == 1 else -1
-                else:
-                    i[last_zero - 2] = 0
-                counter = counter + 1
-
-            #in case of Ambiguous condition A
-                if(i[last_zero - 2] == 0 and (i[last_zero - 1] == 1 or i[last_zero - 1] == -1)):
-                
-                    if (i[last_zero - 1] > 0):
-                        i[last_zero - 1] += 1
+        if (not all_zeros(i)):
+            if (counter < len(binary_array)):
+                last_zero = zero_length(i)
+                if (last_zero >= 2):
+                    if (binary_array[counter] == 1):
+                        secret = random.randint(0, 1)
+                        i[last_zero - 2] = 1 if secret == 1 else -1
                     else:
-                        i[last_zero - 1] -= 1
-            
-            #in case of Ambiguous condition B
-            if ((i[0] == 1 or i[0] == -1) and i[1] == 0):
-
-                if (i[0] > 0):
-                    i[0] += 1
-                else:
-                    i[0] -= 1
-
-            #in case of Ambiguous condition C
-            if (i[0] == 0 and (i[1] == 1 or i[1] == -1) and i[2] == 0):
-
-                if (i[1] > 0):
-                    i[1] += 1
-                else:
-                    i[1] -= 1
-            
-
- 
+                        i[last_zero - 2] = 0
+                    counter = counter + 1
+                    
     return set_array
 
-
 def encrypt():  
-    blocks = get_blocks(image)  
+    blocks = get_blocks(image, 0)  
     sets = get_sets_from_blocks(blocks)
     
     counter = 0
 
     set_array = hide_message(sets)
+    
+    for i in range(10):
+        print(sets[i])
 
     for i in blocks:
         set_array[counter].reverse()
@@ -297,7 +274,9 @@ def encrypt():
         for x in range(0,4):
             i[x+4,x] = set_array[counter][x]
         counter = counter + 1  
-
+        
+    for i in range(5):
+        print(blocks[i])
 
     dequantized_blocks = dequantize_blocks(blocks)
     image_with_info = get_image_from_blocks(dequantized_blocks)
@@ -320,18 +299,23 @@ def get_message(sets):
     set_array = []
 
     for i in sets:
-        #print(i)
+        #print(i)z
         for j in i:
             set_array.append(i[j])
+            
+    for i in range(5):
+        print(sets[i])
     x = 0
     for i in set_array:    
-        if (x < 117):
+        if (x < 155):
             if (not all_zeros(i)):
                 index = highest_non_zero(i)
-                #print(index," ",len(i))
-                if ((i[index - 1] == 1 or i[index - 1] == -1) and i[index] == 0):
-                    received_message += "1"
-                    x += 1
+                print(index,"",len(i),i[index])
+                if (index < len(i) - 1):
+                    print(i[index]," ",i[index+1])
+                    if ((i[index] == 1 or i[index] == -1) and i[index + 1] == 0):
+                        received_message += "1"
+                        x += 1
                 elif (((i[index - 1] == 1 or i[index - 1] == -1) and i[index] != 0 and i[index - 3] == 0)
                     or ((i[index - 1] != 1 and i[index - 1] != -1) and i[index - 2] and i[index - 3] == 0)):
                     received_message += "0"
@@ -347,13 +331,14 @@ def get_message(sets):
 
 
 def decrypt():
-    blocks = get_blocks(hidden)
+    blocks = get_blocks(hidden, 1)
+    for i in range(5):
+        print(blocks[i])
     sets = get_sets_from_blocks(blocks)
-    for i in sets:
-        print(i)
+    
 
     x = get_message(sets)
 
-    #print("WHAT: ", x)
+    print("WHAT: ", x)
 
 decrypt()
