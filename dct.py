@@ -2,14 +2,14 @@ import cv2
 import numpy as np
 import random
 
-
-
 # Load the stego-image
 image = cv2.imread('Lenna(test_image).png', cv2.IMREAD_GRAYSCALE)  # Load as grayscale 
-binary_message = "01010011011100000110100101100101011100100110010001100001011011000110000101101010"
+message = input("Enter secret message : ")
+binary_message = ''.join(format(ord(char), '08b') for char in message)
 binary_array = [int(bit) for bit in binary_message]
 msg_length = len(binary_array)
-
+msg_length_bin = [int(bit) for bit in bin(msg_length)[2:]]
+max_message_bits = 16
 dct_image = cv2.dct(np.float32(image))
 
 # Define the quantization matrix for the Y component
@@ -192,45 +192,61 @@ def get_image_from_blocks(blocks):
 def hide_message(sets):
     set_array = []
     counter = 0
+    len_counter = 0
 
     for i in sets:
         for j in i:
-            set_array.append(i[j])
-            
-    print(set_array[63])
-    print(binary_array[63])
+            set_array.append(i[j]) 
     
-    
+    x = 0
     for i in set_array:
         if (counter < len(binary_array)):
             last_zero = zero_length(i)
+            
+            #condition A
             if((i[last_zero - 1] == 1 or i[last_zero - 1] == -1) and i[last_zero] == 0):
                         if (i[last_zero - 1] > 0):
                             i[last_zero - 1] += 1
                         else:
                             i[last_zero - 1] -= 1 
 
+            #condition B
             if ((i[0] == -1 or i[0] == 1) and i[1] == 0):
                 if (i[0] > 0):
                     i[0] += 1
                 else:
                     i[0] -= 1
 
+            #condition C
             if ((i[1] == -1 or i[1] == 1) and i[0] == 0 and i[2] == 0):
                 if (i[1] > 0):
                     i[1] += 1
                 else:
                     i[1] -= 1
                     
-            if (last_zero >= 2):                      
-                if (binary_array[counter] == 1):
-                    secret = random.randint(0, 1)
-                    i[last_zero - 2] = 1 if secret == 1 else -1
-                else:
+            #hiding the message length
+            if (x < max_message_bits - 2):
+                if (x < max_message_bits - len(msg_length_bin) - 1):
                     i[last_zero - 2] = 0
-                counter = counter + 1
-                    
-    print(set_array[64])
+                    x += 1
+                else:
+                    if (last_zero >= 2 and len_counter < len(msg_length_bin) - 1):                              
+                        if (msg_length_bin[len_counter] == 1):
+                            secret = random.randint(0, 1)
+                            i[last_zero - 2] = 1 if secret == 1 else -1
+                        else:
+                            i[last_zero - 2] = 0
+                        len_counter = len_counter + 1
+                        x += 1
+            else:
+                #Main data hiding   
+                if (last_zero >= 2):                      
+                    if (binary_array[counter] == 1):
+                        secret = random.randint(0, 1)
+                        i[last_zero - 2] = 1 if secret == 1 else -1
+                    else:
+                        i[last_zero - 2] = 0
+                    counter = counter + 1
 
     return set_array
 
@@ -307,6 +323,7 @@ encrypt()
 
 def get_message(sets):
     received_message = ""
+    received_length_bin = ""
     set_array = []
 
     for i in sets:
@@ -314,27 +331,44 @@ def get_message(sets):
             set_array.append(i[j])
             
     x = 0
+    z = 0
     for i in set_array:    
-        if (x < msg_length):
+        if (x < max_message_bits - 2):
             index = highest_non_zero(i)
             if (index != -10000):
                 if (index < len(i) - 1):            
                     if ((i[index] == 1 or i[index] == -1) and i[index + 1] == 0):
-                        received_message += "1"
+                        received_length_bin += "1"
                         x += 1    
                     elif (i[index - 1] == 0):
-                        received_message += "0"
+                        received_length_bin += "0"
                         x += 1                  
                 else:
-                    print("ELSE ",end = "")
                     if (not ((i[index - 1] == 1 or i[index - 1] == -1) and i[index] != 0) or (i[index - 1] != 1 and i[index - 1] != -1 and index <= 1)):      
-                        received_message += "0"
+                        received_length_bin += "0"
                         x += 1
             else:               
-                received_message += "0"
+                received_length_bin += "0"
                 x += 1
-            print(x,index,i,len(i))
-            print(received_message)
+        else:
+            length = int(received_length_bin, 2) * 2
+            if (z < length):
+                index = highest_non_zero(i)
+                if (index != -10000):
+                    if (index < len(i) - 1):            
+                        if ((i[index] == 1 or i[index] == -1) and i[index + 1] == 0):
+                            received_message += "1"
+                            z += 1    
+                        elif (i[index - 1] == 0):
+                            received_message += "0"
+                            z += 1                  
+                    else:
+                        if (not ((i[index - 1] == 1 or i[index - 1] == -1) and i[index] != 0) or (i[index - 1] != 1 and i[index - 1] != -1 and index <= 1)):      
+                            received_message += "0"
+                            z += 1
+                else:               
+                    received_message += "0"
+                    z += 1               
 
     return received_message
 
@@ -348,12 +382,8 @@ def decrypt():
     sets = get_sets_from_blocks(blocks)
     
 
-    x = get_message(sets)
+    recived_message = get_message(sets)
     
-    print(len('0100001101111010011001010111001101100011001000000110101101110101'))
-
-    print(binary_message)
-    print(x)
-    
-    print(binary_message == x)
+    message = ''.join(chr(int(recived_message[i:i+8], 2)) for i in range(0, len(recived_message), 8))
+    print("Your secret message was :", message)
 decrypt()
