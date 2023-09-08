@@ -1,16 +1,16 @@
 import cv2
 import numpy as np
 import random
+import tkinter as tk
+from tkinter import filedialog
 
 # Load the stego-image
-image = cv2.imread('Lenna(test_image).png', cv2.IMREAD_GRAYSCALE)  # Load as grayscale 
-message = input("Enter secret message : ")
-binary_message = ''.join(format(ord(char), '08b') for char in message)
-binary_array = [int(bit) for bit in binary_message]
-msg_length = len(binary_array)
-msg_length_bin = [int(bit) for bit in bin(msg_length)[2:]]
+image = np.ones((55, 55, 3), dtype=np.uint8) * 255
+message = ""
+final_message = ""
 max_message_bits = 16
-dct_image = cv2.dct(np.float32(image))
+encrypt_path = ""
+decrypt_path = ""
 
 # Define the quantization matrix for the Y component
 # This matrix depends on the JPEG quality setting
@@ -36,8 +36,6 @@ DQ = np.array([[16, 11, 10, 16, 24, 40, 51, 61],
 
 # Split the image into 8x8 blocks (assuming the image dimensions are multiples of 8)
 block_size = 8
-num_blocks_height = image.shape[0] // block_size
-num_blocks_width = image.shape[1] // block_size
 
 def zero_length(set):
     length = 0
@@ -57,6 +55,8 @@ def highest_non_zero(set):
     return index
 
 def get_blocks(image, do):
+    num_blocks_height = image.shape[0] // block_size
+    num_blocks_width = image.shape[1] // block_size
     blocks = []
 
     for i in range(num_blocks_height):
@@ -169,6 +169,8 @@ def dequantize_blocks(blocks):
     return dequantized_blocks
 
 def get_image_from_blocks(blocks):
+    num_blocks_height = image.shape[0] // block_size
+    num_blocks_width = image.shape[1] // block_size
     # Assuming 'blocks' is a list of 8x8 blocks (e.g., as obtained from DCT or other operations)
     # Define the dimensions of the image and initialize it
     image_height, image_width = num_blocks_height * block_size, num_blocks_width * block_size
@@ -189,7 +191,7 @@ def get_image_from_blocks(blocks):
     # 'reconstructed_image' now contains the image reconstructed from the blocks
     return reconstructed_image
 
-def hide_message(sets):
+def hide_message(sets, binary_array, msg_length_bin):
     set_array = []
     counter = 0
     len_counter = 0
@@ -250,13 +252,20 @@ def hide_message(sets):
 
     return set_array
 
-def encrypt():  
+def encrypt():
+    global encrypt_path, image
+    image = cv2.imread(encrypt_path, cv2.IMREAD_GRAYSCALE)
     blocks = get_blocks(image, 0)  
     sets = get_sets_from_blocks(blocks)
     
     counter = 0
 
-    set_array = hide_message(sets)
+    binary_message = ''.join(format(ord(char), '08b') for char in message)
+    binary_array = [int(bit) for bit in binary_message]
+    msg_length = len(binary_array)
+    msg_length_bin = [int(bit) for bit in bin(msg_length)[2:]] 
+    
+    set_array = hide_message(sets, binary_array, msg_length_bin)
 
     for i in blocks:
         set_array[counter].reverse()
@@ -311,6 +320,7 @@ def encrypt():
     cv2.imshow('hidden', image_with_info)
     cv2.imwrite('hidden.jpg', image_with_info)
 
+    dct_image = cv2.dct(np.float32(image))
     cv2.imshow('dct normal', dct_image)
     cv2.imshow('dct hidden', dct_image_with_info)
     cv2.imshow('diff', image - image_with_info)
@@ -318,8 +328,6 @@ def encrypt():
     cv2.waitKey(0)
 
     cv2.destroyAllWindows()
-
-encrypt()
 
 def get_message(sets):
     received_message = ""
@@ -377,13 +385,74 @@ def get_message(sets):
 
 
 def decrypt():
-    hidden = cv2.imread('hidden.jpg', cv2.IMREAD_GRAYSCALE)
+    global final_message, decrypt_path
+    print(decrypt_path)
+    hidden = cv2.imread(decrypt_path, cv2.IMREAD_GRAYSCALE)
     blocks = get_blocks(hidden, 1)
     sets = get_sets_from_blocks(blocks)
     
 
     recived_message = get_message(sets)
     
-    message = ''.join(chr(int(recived_message[i:i+8], 2)) for i in range(0, len(recived_message), 8))
-    print("Your secret message was :", message)
+    final_message = ''.join(chr(int(recived_message[i:i+8], 2)) for i in range(0, len(recived_message), 8))
+    print(final_message)
+    
+# Create the main application window
+root = tk.Tk()
+root.title("Image encrytor/decryptor")
+
+# Create labels
+input_label = tk.Label(root, text="Text for encryption : ")
+input_label.grid(row=0, column=0, padx=3, pady=3, sticky=tk.W)
+
+output_label = tk.Label(root, text="Text from decryption : ")
+output_label.grid(row=1, column=0, padx=3, pady=3, sticky=tk.W)
+
+# Create input entry
+input_entry = tk.Entry(root)
+input_entry.grid(row=0, column=1, columnspan=2, padx=5, pady=5, sticky=tk.W)
+
+
+output_entry = tk.Text(root, height=2, width=30)
+output_entry.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
+output_entry.config(state=tk.DISABLED) 
+
+def select_encrypt():
+    global encrypt_path
+    encrypt_path = filedialog.askopenfilename(filetypes=[("Image files", "*.png *.jpg *.jpeg")])
+
+def select_decrypt():
+    global decrypt_path
+    decrypt_path = filedialog.askopenfilename(filetypes=[("Image files", "*.png *.jpg *.jpeg")])
+
+def encrypt_file():
+    global input_entry, message
+    message = input_entry.get()
+    print(encrypt_path, message)
+    encrypt()
+        
+def decrypt_file():
+    global output_entry, final_message
+    decrypt()
+    output_entry.config(state=tk.NORMAL) 
+    output_entry.delete(1.0, tk.END)
+    output_entry.insert(tk.END, final_message)
+    output_entry.config(state=tk.DISABLED) 
+        
+# Create a button widget
+import_encrypt = tk.Button(root, text="Select image to encrypt data into", command=select_encrypt)
+import_decrypt = tk.Button(root, text="Select image to decrypt data from", command=select_decrypt)
+import_encrypt.grid(row=3, column=0, padx=5, pady=5, sticky=tk.W)
+import_decrypt.grid(row=3, column=1, padx=5, pady=5, sticky=tk.W)
+
+enc = tk.Button(root, text="Encrypt", command=encrypt_file)
+dec = tk.Button(root, text="Decrypt", command=decrypt_file)
+enc.grid(row=5, column=0, padx=5, pady=5, sticky=tk.S)
+dec.grid(row=5, column=1, padx=5, pady=5, sticky=tk.S)
+
+
+# Start the tkinter main loop
+root.mainloop()
+
+encrypt()
 decrypt()
