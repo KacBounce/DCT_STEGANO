@@ -386,7 +386,6 @@ def get_message(sets):
 
 def decrypt():
     global final_message, decrypt_path
-    print(decrypt_path)
     hidden = cv2.imread(decrypt_path, cv2.IMREAD_GRAYSCALE)
     blocks = get_blocks(hidden, 1)
     sets = get_sets_from_blocks(blocks)
@@ -395,7 +394,6 @@ def decrypt():
     recived_message = get_message(sets)
     
     final_message = ''.join(chr(int(recived_message[i:i+8], 2)) for i in range(0, len(recived_message), 8))
-    print(final_message)
     
 # Create the main application window
 root = tk.Tk()
@@ -428,7 +426,6 @@ def select_decrypt():
 def encrypt_file():
     global input_entry, message
     message = input_entry.get()
-    print(encrypt_path, message)
     encrypt()
         
 def decrypt_file():
@@ -453,6 +450,3 @@ dec.grid(row=5, column=1, padx=5, pady=5, sticky=tk.S)
 
 # Start the tkinter main loop
 root.mainloop()
-
-encrypt()
-decrypt()
