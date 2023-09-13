@@ -2,17 +2,44 @@ import cv2
 import numpy as np
 from dct import *
 import random
+import threading
 
 max_message_bits = 8
+local_max = 35
+local_curr_sets = []
+local_set_indexes = []
+
+img1 = cv2.imread('C:\\Users\\kbednarski\\OneDrive - Anegis\\Desktop\\Inzynierka\\Lenna(test_image).png', cv2.IMREAD_GRAYSCALE)
+lock = threading.Lock()
+
+def get_image_from_blocks(blocks):
+    num_blocks_height = img1.shape[0] // block_size
+    num_blocks_width = img1.shape[1] // block_size
+    # Assuming 'blocks' is a list of 8x8 blocks (e.g., as obtained from DCT or other operations)
+    # Define the dimensions of the image and initialize it
+    image_height, image_width = num_blocks_height * block_size, num_blocks_width * block_size
+    reconstructed_image = np.zeros((image_height, image_width), dtype=np.uint8)
+
+    # Reconstruct the image from blocks
+    block_index = 0
+    for i in range(num_blocks_height):
+        for j in range(num_blocks_width):
+            # Get the current block
+            block = blocks[block_index]
+            
+            # Place the block in the reconstructed image
+            reconstructed_image[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size] = block
+            
+            block_index += 1
+
+    # 'reconstructed_image' now contains the image reconstructed from the blocks
+    return reconstructed_image
 
 def hide(set_array, binary_array, msg_length_bin):
     x = 0
     counter = 0
     len_counter = 0
-    print(msg_length_bin)
-    print(binary_array)
     for i in set_array:
-        print(i)
         if (counter < len(binary_array)):
             last_zero = zero_length(i)
             
@@ -21,7 +48,7 @@ def hide(set_array, binary_array, msg_length_bin):
                         if (i[last_zero - 1] > 0):
                             i[last_zero - 1] += 1
                         else:
-                            i[last_zero - 1] -= 1 
+                            i[last_zero - 1] -= 1   
 
             #condition B
             if ((i[0] == -1 or i[0] == 1) and i[1] == 0):
@@ -60,20 +87,18 @@ def hide(set_array, binary_array, msg_length_bin):
                     else:
                         i[last_zero - 2] = 0 
                     counter = counter + 1
-        print(i)
     return set_array
 
 def pso():
+    global local_max, local_curr_sets, local_set_indexes, lock
     message = "No hej kurczaki"
     binary_message = ''.join(format(ord(char), '08b') for char in message)
     binary_array = [int(bit) for bit in binary_message]
     msg_length = len(binary_array)
     msg_length_bin = [int(bit) for bit in bin(msg_length)[2:]]   
 
-    img1 = cv2.imread('C:\\Users\\kbednarski\\OneDrive - Anegis\\Desktop\\Inzynierka\\Lenna(test_image).png', cv2.IMREAD_GRAYSCALE)
-
-    max_iterations = 1
-    for i in range(max_iterations):
+    max_iterations = 100
+    for i in range(max_iterations): 
         blocks = get_blocks(img1, 0)  
         sets = get_sets_from_blocks(blocks)
         set_array = []
@@ -92,7 +117,6 @@ def pso():
         for i in set_indexes:
             set_array[i] = curr_sets[counter]
             counter += 1
-        print(len(set_array))
         counter = 0
         for i in blocks:
             set_array[counter].reverse()
@@ -142,23 +166,41 @@ def pso():
 
         dequantized_blocks = dequantize_blocks(blocks)
         image_with_info = get_image_from_blocks(dequantized_blocks)
-        dct_image_with_info = cv2.dct(np.float32(image_with_info))
+        #dct_image_with_info = cv2.dct(np.float32(image_with_info))
 
-        save_path = filedialog.asksaveasfilename(filetypes=[("Image files", "*.png *.jpg *.jpeg")])
+        #cv2.imshow('hidden', image_with_info)
+        #cv2.imwrite('hidden.jpg', image_with_info)
 
-        cv2.imshow('hidden', image_with_info)
-        cv2.imwrite(save_path, image_with_info)
+        #dct_image = cv2.dct(np.float32(img1))
+        #cv2.imshow('dct normal', dct_image)  
+        #cv2.imshow('dct hidden', dct_image_with_info)
 
-        dct_image = cv2.dct(np.float32(img1))
-        cv2.imshow('dct normal', dct_image) 
-        cv2.imshow('dct hidden', dct_image_with_info)
+       # cv2.waitKey(0)
 
-        cv2.waitKey(0)
-
-        cv2.destroyAllWindows()
+       # cv2.destroyAllWindows()
 
         psnr = cv2.PSNR(img1, image_with_info)
 
-        print(psnr,"dB")
+        if (psnr > local_max):
+            lock.acquire()
+            local_max = psnr
+            local_curr_sets = curr_sets
+            local_set_indexes = set_indexes
+            lock.release()
 
-pso()
+
+
+t1 = threading.Thread(target=pso)
+t2 = threading.Thread(target=pso)
+t3 = threading.Thread(target=pso)
+t4 = threading.Thread(target=pso)
+
+t1.start()
+t2.start()
+t3.start()
+t4.start()
+
+t1.join()
+t2.join()
+t3.join()
+t4.join()
