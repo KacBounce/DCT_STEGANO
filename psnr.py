@@ -9,7 +9,7 @@ local_max = 35
 local_curr_sets = []
 local_set_indexes = []
 
-img1 = cv2.imread('C:\\Users\\kbednarski\\OneDrive - Anegis\\Desktop\\Inzynierka\\Lenna(test_image).png', cv2.IMREAD_GRAYSCALE)
+img1 = cv2.imread('Lenna(test_image).png', cv2.IMREAD_GRAYSCALE)
 lock = threading.Lock()
 
 def get_image_from_blocks(blocks):
@@ -97,7 +97,7 @@ def pso():
     msg_length = len(binary_array)
     msg_length_bin = [int(bit) for bit in bin(msg_length)[2:]]   
 
-    max_iterations = 100
+    max_iterations = 10
     for i in range(max_iterations): 
         blocks = get_blocks(img1, 0)  
         sets = get_sets_from_blocks(blocks)
@@ -109,7 +109,7 @@ def pso():
         curr_sets = []
         set_indexes = []
         for i in range(msg_length + max_message_bits):
-            index = random.randint(0, len(set_array))   
+            index = random.randint(0, len(set_array))
             curr_sets.append(set_array[index])
             set_indexes.append(index)
         curr_sets = hide(curr_sets, binary_array, msg_length_bin)
@@ -194,13 +194,30 @@ t1 = threading.Thread(target=pso)
 t2 = threading.Thread(target=pso)
 t3 = threading.Thread(target=pso)
 t4 = threading.Thread(target=pso)
+t5 = threading.Thread(target=pso)
+t6 = threading.Thread(target=pso)
+t7 = threading.Thread(target=pso)
+t8 = threading.Thread(target=pso)
 
+print("Please wait while we calculate best sets to hide data into...")
 t1.start()
 t2.start()
 t3.start()
 t4.start()
-
+t5.start()
+t6.start()
+t7.start()
+t8.start()
+print("Threads started...")
 t1.join()
 t2.join()
 t3.join()
-t4.join()
+t4.join() 
+t5.join()
+t6.join()
+t7.join()
+t8.join()
+print("Calculation complete!")
+print("Best PSNR : ", local_max,
+    "\nSets : ", local_curr_sets,
+    "\nIndexes : ", local_set_indexes)
