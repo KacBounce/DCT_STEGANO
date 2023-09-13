@@ -8,7 +8,7 @@ from tkinter import filedialog
 image = np.ones((55, 55, 3), dtype=np.uint8) * 255
 message = ""
 final_message = ""
-max_message_bits = 16
+max_message_bits = 64
 encrypt_path = ""
 decrypt_path = ""
 
@@ -247,7 +247,7 @@ def hide_message(sets, binary_array, msg_length_bin):
                         secret = random.randint(0, 1)
                         i[last_zero - 2] = 1 if secret == 1 else -1
                     else:
-                        i[last_zero - 2] = 0
+                        i[last_zero - 2] = 0 
                     counter = counter + 1
 
     return set_array
@@ -255,6 +255,15 @@ def hide_message(sets, binary_array, msg_length_bin):
 def encrypt():
     global encrypt_path, image
     image = cv2.imread(encrypt_path, cv2.IMREAD_GRAYSCALE)
+    height = image.shape[0]
+    width = image.shape[1]
+    print(width, height)
+    if (height % 8 != 0):
+        height = height + 8 - (height % 8)
+    if (width % 8 != 0):
+        width = width + 8 - (width % 8)
+    image = cv2.resize(image, (width, height))
+    cv2.imwrite(encrypt_path, image)
     blocks = get_blocks(image, 0)  
     sets = get_sets_from_blocks(blocks)
     
@@ -263,7 +272,7 @@ def encrypt():
     binary_message = ''.join(format(ord(char), '08b') for char in message)
     binary_array = [int(bit) for bit in binary_message]
     msg_length = len(binary_array)
-    msg_length_bin = [int(bit) for bit in bin(msg_length)[2:]] 
+    msg_length_bin = [int(bit) for bit in bin(msg_length)[2:]]
     
     set_array = hide_message(sets, binary_array, msg_length_bin)
 
@@ -317,8 +326,10 @@ def encrypt():
     image_with_info = get_image_from_blocks(dequantized_blocks)
     dct_image_with_info = cv2.dct(np.float32(image_with_info))
 
+    save_path = filedialog.asksaveasfilename(filetypes=[("Image files", "*.png *.jpg *.jpeg")])
+
     cv2.imshow('hidden', image_with_info)
-    cv2.imwrite('hidden.jpg', image_with_info)
+    cv2.imwrite(save_path, image_with_info)
 
     dct_image = cv2.dct(np.float32(image))
     cv2.imshow('dct normal', dct_image)
@@ -380,10 +391,6 @@ def get_message(sets):
 
     return received_message
 
-            
-        
-
-
 def decrypt():
     global final_message, decrypt_path
     hidden = cv2.imread(decrypt_path, cv2.IMREAD_GRAYSCALE)
@@ -407,11 +414,11 @@ output_label = tk.Label(root, text="Text from decryption : ")
 output_label.grid(row=1, column=0, padx=3, pady=3, sticky=tk.W)
 
 # Create input entry
-input_entry = tk.Entry(root)
+input_entry = tk.Text(root, height=3, width=30)
 input_entry.grid(row=0, column=1, columnspan=2, padx=5, pady=5, sticky=tk.W)
 
 
-output_entry = tk.Text(root, height=2, width=30)
+output_entry = tk.Text(root, height=3, width=30)
 output_entry.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
 output_entry.config(state=tk.DISABLED) 
 
@@ -425,7 +432,7 @@ def select_decrypt():
 
 def encrypt_file():
     global input_entry, message
-    message = input_entry.get()
+    message = input_entry.get("1.0", tk.END)
     encrypt()
         
 def decrypt_file():
@@ -436,17 +443,14 @@ def decrypt_file():
     output_entry.insert(tk.END, final_message)
     output_entry.config(state=tk.DISABLED) 
         
-# Create a button widget
 import_encrypt = tk.Button(root, text="Select image to encrypt data into", command=select_encrypt)
 import_decrypt = tk.Button(root, text="Select image to decrypt data from", command=select_decrypt)
-import_encrypt.grid(row=3, column=0, padx=5, pady=5, sticky=tk.W)
-import_decrypt.grid(row=3, column=1, padx=5, pady=5, sticky=tk.W)
+import_encrypt.grid(row=3, column=0, padx=5, pady=5, sticky=tk.SW)
+import_decrypt.grid(row=3, column=1, padx=5, pady=5, sticky=tk.SE)
 
 enc = tk.Button(root, text="Encrypt", command=encrypt_file)
 dec = tk.Button(root, text="Decrypt", command=decrypt_file)
-enc.grid(row=5, column=0, padx=5, pady=5, sticky=tk.S)
-dec.grid(row=5, column=1, padx=5, pady=5, sticky=tk.S)
+enc.grid(row=4, column=0, padx=5, pady=5)
+dec.grid(row=4, column=1, padx=5, pady=5)
 
-
-# Start the tkinter main loop
 root.mainloop()
