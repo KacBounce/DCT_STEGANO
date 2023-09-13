@@ -4,18 +4,15 @@ import random
 import tkinter as tk
 from tkinter import filedialog
 
-# Load the stego-image
 image = np.ones((55, 55, 3), dtype=np.uint8) * 255
 message = ""
 final_message = ""
 max_message_bits = 64
 encrypt_path = ""
 decrypt_path = ""
-
-# Define the quantization matrix for the Y component
-# This matrix depends on the JPEG quality setting
-# For example, for a quality setting of 50 (typical value), you can use a standard JPEG quantization matrix
 quality = 50
+block_size = 8
+
 Q = np.array([[16, 11, 10, 16, 24, 40, 51, 61],
         [12, 12, 14, 19, 26, 58, 60, 55],
         [14, 13, 16, 24, 40, 57, 69, 56],
@@ -34,8 +31,6 @@ DQ = np.array([[16, 11, 10, 16, 24, 40, 51, 61],
         [49, 64, 55, 61, 72, 85, 84, 71],
         [72, 92, 95, 69, 78, 70, 72, 70]])
 
-# Split the image into 8x8 blocks (assuming the image dimensions are multiples of 8)
-block_size = 8
 
 def zero_length(set):
     length = 0
@@ -171,7 +166,7 @@ def dequantize_blocks(blocks):
 def get_image_from_blocks(blocks):
     num_blocks_height = image.shape[0] // block_size
     num_blocks_width = image.shape[1] // block_size
-    # Assuming 'blocks' is a list of 8x8 blocks (e.g., as obtained from DCT or other operations)
+
     # Define the dimensions of the image and initialize it
     image_height, image_width = num_blocks_height * block_size, num_blocks_width * block_size
     reconstructed_image = np.zeros((image_height, image_width), dtype=np.uint8)
@@ -188,7 +183,6 @@ def get_image_from_blocks(blocks):
             
             block_index += 1
 
-    # 'reconstructed_image' now contains the image reconstructed from the blocks
     return reconstructed_image
 
 def hide_message(sets, binary_array, msg_length_bin):
