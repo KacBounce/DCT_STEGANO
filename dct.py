@@ -12,6 +12,8 @@ encrypt_path = ""
 decrypt_path = ""
 quality = 50
 block_size = 8
+delimiter = '##END'
+delimiter = ''.join(format(ord(char), '08b') for char in delimiter)
 
 Q = np.array([[16, 11, 10, 16, 24, 40, 51, 61],
         [12, 12, 14, 19, 26, 58, 60, 55],
@@ -185,16 +187,15 @@ def get_image_from_blocks(blocks):
 
     return reconstructed_image
 
-def hide_message(sets, binary_array, msg_length_bin):
+def hide_message(sets, binary_array):
     set_array = []
     counter = 0
-    len_counter = 0
+    counter2 = 0
 
     for i in sets:
         for j in i:
             set_array.append(i[j]) 
     
-    x = 0
     for i in set_array:
         if (counter < len(binary_array)):
             last_zero = zero_length(i)
@@ -219,31 +220,25 @@ def hide_message(sets, binary_array, msg_length_bin):
                     i[1] += 1
                 else:
                     i[1] -= 1
-                    
-            #hiding the message length
-            if (x < max_message_bits - 2):
-                if (x < max_message_bits - len(msg_length_bin) - 1):
-                    i[last_zero - 2] = 0
-                    x += 1
+            #Main data hiding   
+            if (last_zero >= 2):                   
+                if (binary_array[counter] == 1):
+                    secret = random.randint(0, 1)
+                    i[last_zero - 2] = 1 if secret == 1 else -1
                 else:
-                    if (last_zero >= 2 and len_counter < len(msg_length_bin) - 1):                              
-                        if (msg_length_bin[len_counter] == 1):
-                            secret = random.randint(0, 1)
-                            i[last_zero - 2] = 1 if secret == 1 else -1
-                        else:
-                            i[last_zero - 2] = 0
-                        len_counter = len_counter + 1
-                        x += 1
+                    i[last_zero - 2] = 0 
+                counter = counter + 1
+        elif(counter < len(binary_array) + len(delimiter)):
+            last_zero = zero_length(i)
+            if (delimiter[counter2] == '1'):
+                if(counter2 < len(delimiter) - 1):
+                    secret = random.randint(0, 1)
+                    i[last_zero - 2] = 1 if secret == 1 else -1
+                    counter2 = counter2 + 1 
             else:
-                #Main data hiding   
-                if (last_zero >= 2):                      
-                    if (binary_array[counter] == 1):
-                        secret = random.randint(0, 1)
-                        i[last_zero - 2] = 1 if secret == 1 else -1
-                    else:
-                        i[last_zero - 2] = 0 
-                    counter = counter + 1
-
+                if(counter2 < len(delimiter) - 1):
+                    i[last_zero - 2] = 0 
+                    counter2 = counter2 + 1 
     return set_array
 
 def encrypt():
@@ -268,7 +263,7 @@ def encrypt():
     msg_length = len(binary_array)
     msg_length_bin = [int(bit) for bit in bin(msg_length)[2:]]
     
-    set_array = hide_message(sets, binary_array, msg_length_bin)
+    set_array = hide_message(sets, binary_array)
 
     for i in blocks:
         set_array[counter].reverse()
@@ -343,47 +338,28 @@ def get_message(sets):
         for j in i:
             set_array.append(i[j])
             
-    x = 0
     z = 0
     for i in set_array:    
-        if (x < max_message_bits - 2):
+        if (received_message[-40:] != delimiter):
             index = highest_non_zero(i)
             if (index != -10000):
                 if (index < len(i) - 1):            
                     if ((i[index] == 1 or i[index] == -1) and i[index + 1] == 0):
-                        received_length_bin += "1"
-                        x += 1    
+                        received_message += "1"
+                        z += 1    
                     elif (i[index - 1] == 0):
-                        received_length_bin += "0"
-                        x += 1                  
+                        received_message += "0"
+                        z += 1                  
                 else:
                     if (not ((i[index - 1] == 1 or i[index - 1] == -1) and i[index] != 0) or (i[index - 1] != 1 and i[index - 1] != -1 and index <= 1)):      
-                        received_length_bin += "0"
-                        x += 1
+                        received_message += "0"
+                        z += 1
             else:               
-                received_length_bin += "0"
-                x += 1
+                received_message += "0"
+                z += 1               
         else:
-            length = int(received_length_bin, 2) * 2
-            if (z < length):
-                index = highest_non_zero(i)
-                if (index != -10000):
-                    if (index < len(i) - 1):            
-                        if ((i[index] == 1 or i[index] == -1) and i[index + 1] == 0):
-                            received_message += "1"
-                            z += 1    
-                        elif (i[index - 1] == 0):
-                            received_message += "0"
-                            z += 1                  
-                    else:
-                        if (not ((i[index - 1] == 1 or i[index - 1] == -1) and i[index] != 0) or (i[index - 1] != 1 and i[index - 1] != -1 and index <= 1)):      
-                            received_message += "0"
-                            z += 1
-                else:               
-                    received_message += "0"
-                    z += 1               
-
-    return received_message
+            break
+    return received_message[:-40]
 
 def decrypt():
     global final_message, decrypt_path
