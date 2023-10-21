@@ -7,9 +7,9 @@ delimiter = '##END'
 delimiter = ''.join(format(ord(char), '08b') for char in delimiter)
 
 def create_chromosome():        
-    chromosome = random.randint(0,67108864)
+    chromosome = random.randint(0,2097152)
     binary_chromosome = format(chromosome,'b')
-    while(len(binary_chromosome)<26):
+    while(len(binary_chromosome)<21):
         binary_chromosome = "0" + binary_chromosome
     return [chromosome, binary_chromosome]
 
@@ -19,9 +19,9 @@ print(chromosome, binary_chromosome)
 def transform_secret_image(img, binary_chromosome):
     width, height = img.size
     binary_data = ''.join(format(pixel, '08b') for pixel in img.tobytes())
-    if(binary_chromosome[2] == '1'):
-        binary_data = ''.join('1' if bit == '0' else '0' for bit in binary_data)
     if(binary_chromosome[1] == '1'):
+        binary_data = ''.join('1' if bit == '0' else '0' for bit in binary_data)
+    if(binary_chromosome[0] == '1'):
         binary_data = binary_data[::-1]
     return [binary_data, width, height]
 
@@ -31,9 +31,9 @@ def transform_bits_image(binary_data, width, height, binary_chromosome):
     # Create an empty image
     img = Image.new(mode, (width, height))
     
-    if(binary_chromosome[2] == '1'):
-        binary_data = ''.join('1' if bit == '0' else '0' for bit in binary_data)
     if(binary_chromosome[1] == '1'):
+        binary_data = ''.join('1' if bit == '0' else '0' for bit in binary_data)
+    if(binary_chromosome[0] == '1'):
         binary_data = binary_data[::-1]
 
     # Parse the list of bits and set pixel values
@@ -41,69 +41,6 @@ def transform_bits_image(binary_data, width, height, binary_chromosome):
     img.putdata(pixels)
     return img
 
-# def Encode(src, binary_message, dest, binary_chromosome):
-
-#     img = Image.open(src, 'r')
-#     width, height = img.size
-#     array = np.array(list(img.getdata()))
-
-#     if img.mode == 'RGB':
-#         n = 3
-#     elif img.mode == 'RGBA':
-#         n = 4
-#     print(len(array))
-#     total_pixels = len(array)
-#     req_pixels = len(binary_message)
-    
-#     delimiter = '##END'
-#     delimiter = ''.join(format(ord(char), '08b') for char in delimiter)
-
-#     if req_pixels > total_pixels:
-#         print("ERROR: Need larger file size")
-
-#     else:
-#         print(binary_chromosome[23:26])
-#         if (binary_chromosome[23:26]== "000"):
-#             index=0
-#             index2=0
-#             for p in range(total_pixels + len(delimiter) - 1):
-#                 for q in range(0, 3):
-#                     if index < req_pixels:
-#                         array[p][q] = int(bin(array[p][q])[2:9] + binary_message[index], 2)
-#                         index += 1
-#                     elif (index < req_pixels + len(delimiter)):
-#                         array[p][q] = int(bin(array[p][q])[2:9] + delimiter[index2], 2)
-#                         index2 += 1
-        
-
-#         array=array.reshape(height, width)
-#         enc_img = Image.fromarray(array.astype('uint8'), img.mode)
-#         enc_img.save(dest)
-        
-# def Decode(src):
-
-#     img = Image.open(src, 'r')
-#     array = np.array(list(img.getdata()))
-#     total_pixels = len(array)
-
-#     hidden_bits = ""
-#     for p in range(total_pixels):
-#         for q in range(0, 3):
-#             hidden_bits += (bin(array[p][q])[2:][-1])
-
-#     hidden_bits = [hidden_bits[i:i+8] for i in range(0, len(hidden_bits), 8)]
-
-#     message = ""
-#     for i in range(len(hidden_bits)):
-#         if message[-5:] == "##END":
-#             break
-#         else:
-#             message += chr(int(hidden_bits[i], 2))
-#     if "##END" in message:
-#         return message[:-5]
-#         print("Hidden Message:", message[:-5])
-#     else:
-#         print("No Hidden Message Found")
 
 def hide_bit(value, bit):
     bin_pixel_str = format(value,'b')
@@ -120,9 +57,9 @@ def Encode(host, binary_message, binary_chromosome):
     index = 0
     index2 = 0
     #first direction
-    if (binary_chromosome[23:26]== "000"):
-        for h in range(height):
-            for w in range(width):
+    if (binary_chromosome[18:21]== "000"):
+        for h in range(int(binary_chromosome[2:10], 2), height):
+            for w in range(int(binary_chromosome[10:18], 2), width):
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -131,9 +68,9 @@ def Encode(host, binary_message, binary_chromosome):
                         host[h][w] = hide_bit(host[h][w], delimiter[index2])
                         index2 += 1
     #second direction
-    elif (binary_chromosome[23:26]== "001"):
-        for w in range(width):
-            for h in range(height):
+    elif (binary_chromosome[18:21]== "001"):
+        for w in range(int(binary_chromosome[10:18], 2), width):
+            for h in range(int(binary_chromosome[2:10], 2), height):
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -142,9 +79,9 @@ def Encode(host, binary_message, binary_chromosome):
                         host[h][w] = hide_bit(host[h][w], delimiter[index2])
                         index2 += 1
     #third direction
-    elif (binary_chromosome[23:26]== "010"):
-        for h in range(height):
-            for w in range(width-1, 0, -1):
+    elif (binary_chromosome[18:21]== "010"):
+        for h in range(int(binary_chromosome[2:10], 2), height):
+            for w in range(width - 1 - int(binary_chromosome[10:18], 2), 0, -1):
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -153,9 +90,9 @@ def Encode(host, binary_message, binary_chromosome):
                         host[h][w] = hide_bit(host[h][w], delimiter[index2])
                         index2 += 1
     #fourth direction
-    elif (binary_chromosome[23:26]== "011"):
-        for w in range(width-1, 0, -1):
-            for h in range(height):
+    elif (binary_chromosome[18:21]== "011"):
+        for w in range(width - 1 - int(binary_chromosome[10:18], 2), 0, -1):
+            for h in range(int(binary_chromosome[2:10], 2), height):
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -164,9 +101,9 @@ def Encode(host, binary_message, binary_chromosome):
                         host[h][w] = hide_bit(host[h][w], delimiter[index2])
                         index2 += 1
     #fifth direction
-    elif (binary_chromosome[23:26]== "100"): 
-         for w in range(width-1, 0, -1):
-            for h in range(height-1, 0, -1):
+    elif (binary_chromosome[18:21]== "100"): 
+         for w in range(width - 1 - int(binary_chromosome[10:18], 2), 0, -1):
+            for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1):
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -175,9 +112,9 @@ def Encode(host, binary_message, binary_chromosome):
                         host[h][w] = hide_bit(host[h][w], delimiter[index2])
                         index2 += 1
     #sixth direction
-    elif (binary_chromosome[23:26]== "101"):
-        for h in range(height-1, 0, -1): 
-            for w in range(width-1, 0, -1):
+    elif (binary_chromosome[18:21]== "101"):
+        for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1):
+            for w in range(width- 1 - int(binary_chromosome[10:18], 2), 0, -1):
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -186,9 +123,9 @@ def Encode(host, binary_message, binary_chromosome):
                         host[h][w] = hide_bit(host[h][w], delimiter[index2])
                         index2 += 1
     #seventh direction
-    elif (binary_chromosome[23:26]== "110"):
-        for h in range(height-1, 0, -1): 
-            for w in range(width):
+    elif (binary_chromosome[18:21]== "110"):
+        for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1): 
+            for w in range(int(binary_chromosome[10:18], 2), width):
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -197,9 +134,9 @@ def Encode(host, binary_message, binary_chromosome):
                         host[h][w] = hide_bit(host[h][w], delimiter[index2])
                         index2 += 1
     #eigth direction
-    elif (binary_chromosome[23:26]== "111"):
-        for w in range(width):
-            for h in range(height-1, 0, -1):            
+    elif (binary_chromosome[18:21]== "111"):
+        for w in range(int(binary_chromosome[10:18], 2), width):
+            for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1):           
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -214,9 +151,9 @@ def Decode(host, binary_chromosome):
     height, width = host.shape
     binary_data = ""
     #first direction
-    if (binary_chromosome[23:26]== "000"):
-        for h in range(height):
-            for w in range(width):
+    if (binary_chromosome[18:21]== "000"):
+        for h in range(int(binary_chromosome[2:10], 2), height):
+            for w in range(int(binary_chromosome[10:18], 2), width):
                 if(binary_data[-40:] != delimiter):
                     bin_pixel_str = format(host[h][w],'b')
                     bin_pixel = list(bin_pixel_str)
@@ -224,9 +161,9 @@ def Decode(host, binary_chromosome):
                 else:
                     break
     #second direction
-    elif (binary_chromosome[23:26]== "001"):
-        for w in range(width):
-            for h in range(height):
+    elif (binary_chromosome[18:21]== "001"):
+        for w in range(int(binary_chromosome[10:18], 2), width):
+            for h in range(int(binary_chromosome[2:10], 2), height):
                 if(binary_data[-40:] != delimiter):
                     bin_pixel_str = format(host[h][w],'b')
                     bin_pixel = list(bin_pixel_str)
@@ -234,9 +171,9 @@ def Decode(host, binary_chromosome):
                 else:
                     break
     #third direction
-    elif (binary_chromosome[23:26]== "010"):
-        for h in range(height):
-            for w in range(width-1, 0, -1):
+    elif (binary_chromosome[18:21]== "010"):
+        for h in range(int(binary_chromosome[2:10], 2), height):
+            for w in range(width - 1 - int(binary_chromosome[10:18], 2), 0, -1):
                 if(binary_data[-40:] != delimiter):
                     bin_pixel_str = format(host[h][w],'b')
                     bin_pixel = list(bin_pixel_str)
@@ -244,9 +181,9 @@ def Decode(host, binary_chromosome):
                 else:
                     break
     #fourth direction
-    elif (binary_chromosome[23:26]== "011"):
-        for w in range(width-1, 0, -1):
-            for h in range(height):
+    elif (binary_chromosome[18:21]== "011"):
+        for w in range(width - 1 - int(binary_chromosome[10:18], 2), 0, -1):
+            for h in range(int(binary_chromosome[2:10], 2), height):
                 if(binary_data[-40:] != delimiter):
                     bin_pixel_str = format(host[h][w],'b')
                     bin_pixel = list(bin_pixel_str)
@@ -254,9 +191,9 @@ def Decode(host, binary_chromosome):
                 else:
                     break
     #fifth direction
-    elif (binary_chromosome[23:26]== "100"):
-        for w in range(width-1, 0, -1):
-            for h in range(height-1, 0, -1):
+    elif (binary_chromosome[18:21]== "100"):
+        for w in range(width - 1 - int(binary_chromosome[10:18], 2), 0, -1):
+            for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1):
                 if(binary_data[-40:] != delimiter):
                     bin_pixel_str = format(host[h][w],'b')
                     bin_pixel = list(bin_pixel_str)
@@ -264,9 +201,9 @@ def Decode(host, binary_chromosome):
                 else:
                     break
     #sixth direction
-    elif (binary_chromosome[23:26]== "101"):
-        for h in range(height-1, 0, -1):
-            for w in range(width-1, 0, -1):
+    elif (binary_chromosome[18:21]== "101"):
+        for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1):
+            for w in range(width- 1 - int(binary_chromosome[10:18], 2), 0, -1):
                 if(binary_data[-40:] != delimiter):
                     bin_pixel_str = format(host[h][w],'b')
                     bin_pixel = list(bin_pixel_str)
@@ -274,9 +211,9 @@ def Decode(host, binary_chromosome):
                 else:
                     break
     #seventh direction
-    elif (binary_chromosome[23:26]== "110"):
-        for h in range(height-1, 0, -1):
-            for w in range(width):
+    elif (binary_chromosome[18:21]== "110"):
+        for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1): 
+            for w in range(int(binary_chromosome[10:18], 2), width):
                 if(binary_data[-40:] != delimiter):
                     bin_pixel_str = format(host[h][w],'b')
                     bin_pixel = list(bin_pixel_str)
@@ -284,9 +221,9 @@ def Decode(host, binary_chromosome):
                 else:
                     break
     #eigth direction
-    elif (binary_chromosome[23:26]== "111"):
-        for w in range(width):
-            for h in range(height-1, 0, -1):  
+    elif (binary_chromosome[18:21]== "111"):
+        for w in range(int(binary_chromosome[10:18], 2), width):
+            for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1):  
                 if(binary_data[-40:] != delimiter):
                     bin_pixel_str = format(host[h][w],'b')
                     bin_pixel = list(bin_pixel_str)
@@ -295,10 +232,13 @@ def Decode(host, binary_chromosome):
                     break
     
     return binary_data[:-40]
-# lst = list(binary_chromosome)            
-# lst[23:26] = ['1','1','1']
-# binary_chromosome = ''.join(lst)
-# print(binary_chromosome)
+lst = list(binary_chromosome)            
+lst[18:21] = ['1','1','1']
+lst[0] = '1'
+binary_chromosome = ''.join(lst)
+print(binary_chromosome[2:10])
+print(binary_chromosome[10:18])
+print(binary_chromosome)
 image = cv2.imread('Lenna(test_image).png', 0)
 
 #img = Image.open('Lenna(test_image).png', 'r')
