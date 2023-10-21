@@ -11,10 +11,8 @@ def create_chromosome():
     binary_chromosome = format(chromosome,'b')
     while(len(binary_chromosome)<21):
         binary_chromosome = "0" + binary_chromosome
-    return [chromosome, binary_chromosome]
+    return binary_chromosome
 
-chromosome, binary_chromosome = create_chromosome()
-print(chromosome, binary_chromosome)
 
 def transform_secret_image(img, binary_chromosome):
     width, height = img.size
@@ -60,6 +58,8 @@ def Encode(host, binary_message, binary_chromosome):
     if (binary_chromosome[18:21]== "000"):
         for h in range(int(binary_chromosome[2:10], 2), height):
             for w in range(int(binary_chromosome[10:18], 2), width):
+                print(w)
+                print(host[h][w])
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -71,6 +71,8 @@ def Encode(host, binary_message, binary_chromosome):
     elif (binary_chromosome[18:21]== "001"):
         for w in range(int(binary_chromosome[10:18], 2), width):
             for h in range(int(binary_chromosome[2:10], 2), height):
+                print(w)
+                print(host[h][w])
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -82,6 +84,8 @@ def Encode(host, binary_message, binary_chromosome):
     elif (binary_chromosome[18:21]== "010"):
         for h in range(int(binary_chromosome[2:10], 2), height):
             for w in range(width - 1 - int(binary_chromosome[10:18], 2), 0, -1):
+                print(w)
+                print(host[h][w])
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -93,6 +97,8 @@ def Encode(host, binary_message, binary_chromosome):
     elif (binary_chromosome[18:21]== "011"):
         for w in range(width - 1 - int(binary_chromosome[10:18], 2), 0, -1):
             for h in range(int(binary_chromosome[2:10], 2), height):
+                print(w)
+                print(host[h][w])
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -104,6 +110,8 @@ def Encode(host, binary_message, binary_chromosome):
     elif (binary_chromosome[18:21]== "100"): 
          for w in range(width - 1 - int(binary_chromosome[10:18], 2), 0, -1):
             for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1):
+                print(w)
+                print(host[h][w])
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -115,6 +123,8 @@ def Encode(host, binary_message, binary_chromosome):
     elif (binary_chromosome[18:21]== "101"):
         for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1):
             for w in range(width- 1 - int(binary_chromosome[10:18], 2), 0, -1):
+                print(w)
+                print(host[h][w])
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -126,6 +136,8 @@ def Encode(host, binary_message, binary_chromosome):
     elif (binary_chromosome[18:21]== "110"):
         for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1): 
             for w in range(int(binary_chromosome[10:18], 2), width):
+                print(w)
+                print(host[h][w])
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -136,7 +148,9 @@ def Encode(host, binary_message, binary_chromosome):
     #eigth direction
     elif (binary_chromosome[18:21]== "111"):
         for w in range(int(binary_chromosome[10:18], 2), width):
-            for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1):           
+            for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1):   
+                print(w)
+                print(host[h][w])        
                 if (index < len(binary_message)):
                     host[h][w] = hide_bit(host[h][w], binary_message[index])
                     index += 1
@@ -232,24 +246,17 @@ def Decode(host, binary_chromosome):
                     break
     
     return binary_data[:-40]
-lst = list(binary_chromosome)            
-lst[18:21] = ['1','1','1']
-lst[0] = '1'
-binary_chromosome = ''.join(lst)
-print(binary_chromosome[2:10])
-print(binary_chromosome[10:18])
-print(binary_chromosome)
-image = cv2.imread('Lenna(test_image).png', 0)
 
+#TEST
+
+binary_chromosome = create_chromosome()
+image = cv2.imread('Lenna(test_image).png', 0)
 #img = Image.open('Lenna(test_image).png', 'r')
 img = Image.open('Secret Lenna.png', 'r')
 array = np.array(list(img.getdata()))
 img = img.convert('L')
 binary_data, width, height = transform_secret_image(img, binary_chromosome)
-print(len(binary_data), width, height)
-
-
-
+print(len(binary_data))
 
 lol = Encode(image, binary_data, binary_chromosome)
 cv2.imshow('Hidden',lol)
@@ -263,6 +270,49 @@ if(recovered_data == binary_data):
     img_back = transform_bits_image(recovered_data, 100, 100, binary_chromosome)
     img_back.save('reconstructed_image.png')
     img2 = cv2.imread('reconstructed_image.png')
-    cv2.imshow('Recovered', img2)   
+    cv2.imshow('Recovered', img2) 
 
-cv2.waitKey(0)
+
+
+def fitness_function(binary_chromosome):
+    image = cv2.imread('Lenna(test_image).png', 0)
+    img = Image.open('Secret Lenna.png', 'r')
+    img = img.convert('L')
+    binary_data = transform_secret_image(img, binary_chromosome)
+    print(len(binary_data), len(binary_chromosome))
+    lol = Encode(image, binary_data, binary_chromosome)
+    return cv2.PSNR(image, lol)
+      
+# Genetic Algorithm parameters
+population_size = 100
+num_generations = 50
+
+# Initialization: Create an initial population
+population = [create_chromosome() for _ in range(population_size)]
+
+for i in population:
+    print(i)
+
+for generation in range(num_generations):
+    # Fitness Evaluation
+    fitness_scores = [fitness_function(x) for x in population]
+    
+    # Selection (Tournament selection)
+    selected_parents = random.sample(population, 10)
+    parents = [max(selected_parents, key=fitness_function), min(selected_parents, key=fitness_function)]
+    
+    # Crossover
+    offspring = [(parents[0] + parents[1]) / 2 for _ in range(population_size)]
+    
+    # Mutation
+    mutation_rate = 0.1
+    for i in range(population_size):
+        if random.random() < mutation_rate:
+            offspring[i] += random.uniform(-0.1, 0.1)
+    
+    # Replacement
+    population = offspring
+
+# Print the best solution found
+best_solution = max(population, key=fitness_function)
+print("Best solution:", best_solution)
