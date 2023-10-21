@@ -2,10 +2,16 @@ import numpy as np
 from PIL import Image
 import random
 import cv2
+from threading import Thread, Lock
 
 delimiter = '##END'
 delimiter = ''.join(format(ord(char), '08b') for char in delimiter)
 image = cv2.imread('lenna(test_image).png', 0)
+genetic_lock = Lock()
+pso_lock = Lock()
+
+best_particle = ''
+best_solution = ''
 
 
 
@@ -268,6 +274,7 @@ def fitness_function(binary_chromosome):
 
 
 def genetic():      
+    global best_solution
     # Genetic Algorithm parameters
     population_size = 50
     num_generations = 10
@@ -301,30 +308,13 @@ def genetic():
 
         # Replacement: Replace the old population with the offspring
         population = offspring
-
+    genetic_lock.acquire()
     # Print the best solution found
     best_solution = max(population, key=fitness_function)
-    print("Best solution:", best_solution, "PSNR : ", fitness_function(best_solution))
-    binary_data = transform_secret_image(secret_image, best_solution)
-    print(len(binary_data))
-    lol = Encode(image, binary_data, best_solution)
-    cv2.imshow('Hidden',lol)
-    cv2.imwrite('Hidden_lsb.png', lol)
-    diff = image - lol
-
-    cv2.imshow('Difference', diff)
-    recovered_data = Decode(lol, best_solution)
-
-    if(recovered_data == binary_data):
-        print('success')
-        secret_image_back = transform_bits_image(recovered_data, secret_width, secret_height, best_solution)
-        secret_image_back.save('reconstructed_image.png')
-        secret_image2 = cv2.imread('reconstructed_image.png')
-        cv2.imshow('Recovered', secret_image2)
-    cv2.waitKey(0) 
+    genetic_lock.release()
 
 def pso():
-    global secret_image
+    global secret_image, best_particle
     # Define the problem parameters
     num_particles = 30
     num_dimensions = 21  # Length of the binary chromosome
@@ -332,8 +322,8 @@ def pso():
     c1 = 2.0  # Cognitive coefficient
     c2 = 2.0  # Social coefficient
     # Initialize the particles' positions and velocities
+    global_best_position = None
     best_positions = []  # Best positions for each particle
-    global_best_position = None  # Global best position
     
     particles = []
     for _ in range(num_particles):
@@ -367,25 +357,76 @@ def pso():
                 velocities[i][j] = velocities[i][j] + cognitive_component + social_component
                 # Update the particle's position (using binary update)
                 particles[i][j] = 1 if random.random() < 1 / (1 + 2.7**(-velocities[i][j])) else 0
+    pso_lock.acquire()
     best_particle = ["1" if x == 1 else "0" for x in global_best_position]
     best_particle = ''.join(best_particle)
-    print("Best solution:", best_particle, "PSNR : ", fitness_function(best_particle))
-    binary_data = transform_secret_image(secret_image, best_particle)
+    pso_lock.release()
+
+def multithreaded_optimization():
+    threads_genetic = []
+    threads_pso = []
+    num_threads = 4
+    for i in range(num_threads):
+        x = Thread(target=genetic)
+        y = Thread(target=pso)
+        threads_genetic.append(x)
+        threads_pso.append(y)
+    for i in range(num_threads):
+        threads_pso[i].start()
+        print("Starting a pso thread")
+        threads_genetic[i].start()
+        print("Starting a genetic thread")
+    print("Working on the optimization...")
+    for i in range(num_threads):
+        threads_pso[i].join()
+        print("Stopping a pso thread")
+        threads_genetic[i].join()
+        print("Stopping a genetic thread")
+
+
+def main():
+    multithreaded_optimization()
+    
+    print("Best solution from Genetic", best_solution, "PSNR : ", fitness_function(best_solution))
+    binary_data = transform_secret_image(secret_image, best_solution)
     print(len(binary_data))
-    lol = Encode(image, binary_data, best_particle)
-    cv2.imshow('Hidden',lol)
-    cv2.imwrite('Hidden_lsb.png', lol)
+    lol = Encode(image, binary_data, best_solution)
+    cv2.imshow('Hidden genetic',lol)
+    cv2.imwrite('Hidden_lsb_genetic.png', lol)
     diff = image - lol
 
-    cv2.imshow('Difference', diff)
+    cv2.imshow('Difference genetic', diff)
+    recovered_data = Decode(lol, best_solution)
+
+    if(recovered_data == binary_data):
+        print('success genetic')
+        secret_image_back = transform_bits_image(recovered_data, secret_width, secret_height, best_solution)
+        secret_image_back.save('reconstructed_image_genetic.png')
+        secret_image2 = cv2.imread('reconstructed_image_genetic.png')
+        cv2.imshow('Recovered genetic', secret_image2)
+    else:
+        print('Failed genetic')
+    
+    print("Best solution pso :", best_particle, "PSNR : ", fitness_function(best_particle))
+    binary_data = transform_secret_image(secret_image, best_particle)
+    lol = Encode(image, binary_data, best_particle)
+    cv2.imshow('Hidden pso',lol)
+    cv2.imwrite('Hidden_lsb_pso.png', lol)
+    diff = image - lol
+
+    cv2.imshow('Difference pso', diff)
     recovered_data = Decode(lol, best_particle)
 
     if(recovered_data == binary_data):
-        print('success')
-        secret_image_back = transform_bits_image(recovered_data, secret_width, secret_height, global_best_position)
-        secret_image_back.save('reconstructed_image.png')
-        secret_image2 = cv2.imread('reconstructed_image.png')
-        cv2.imshow('Recovered', secret_image2)
+        print('success pso')
+        secret_image_back = transform_bits_image(recovered_data, secret_width, secret_height, best_particle)
+        secret_image_back.save('reconstructed_image_pso.png')
+        secret_image2 = cv2.imread('reconstructed_image_pso.png')
+        cv2.imshow('Recovered_pso', secret_image2)
+    else:
+        print('Failed pso')
     cv2.waitKey(0) 
-pso()
+
+main()
+
         
