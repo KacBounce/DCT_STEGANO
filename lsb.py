@@ -265,58 +265,127 @@ def fitness_function(binary_chromosome):
     binary_data = transform_secret_image(secret_image, binary_chromosome)
     secret = Encode(image, binary_data, binary_chromosome)
     return cv2.PSNR(image, secret) 
-      
-# Genetic Algorithm parameters
-population_size = 50
-num_generations = 10
-mutation_rate = 0.1
 
-# Initialization: Create an initial population
-population = [create_chromosome() for _ in range(population_size)]
 
-for generation in range(num_generations):
-    # Fitness Evaluation
-    fitness_scores = [fitness_function(x) for x in population]
+def genetic():      
+    # Genetic Algorithm parameters
+    population_size = 50
+    num_generations = 10
+    mutation_rate = 0.1
+
+    # Initialization: Create an initial population
+    population = [create_chromosome() for _ in range(population_size)]
+
+    for generation in range(num_generations):
+        # Fitness Evaluation
+        fitness_scores = [fitness_function(x) for x in population]
+        
+        # Selection: Roulette wheel selection
+        selected_parents = random.choices(population, weights=fitness_scores, k=population_size)
+        
+        # Crossover: One-point crossover
+        offspring = []
+        for i in range(0, population_size, 2):
+            parent1 = selected_parents[i]
+            parent2 = selected_parents[i + 1]
+            crossover_point = random.randint(1, 21 - 1)
+            offspring1 = parent1[:crossover_point] + parent2[crossover_point:]
+            offspring2 = parent2[:crossover_point] + parent1[crossover_point:]
+            offspring.extend([offspring1, offspring2])
+
+        # Mutation: Flip individual bits with a low probability
+        for i in range(population_size):
+            for j in range(21):
+                if random.random() < mutation_rate:
+                    offspring[i] = offspring[i][:j] + ("0" if offspring[i][j] == "1" else "1") + offspring[i][j+1:]
+
+        # Replacement: Replace the old population with the offspring
+        population = offspring
+
+    # Print the best solution found
+    best_solution = max(population, key=fitness_function)
+    print("Best solution:", best_solution, "PSNR : ", fitness_function(best_solution))
+    binary_data = transform_secret_image(secret_image, best_solution)
+    print(len(binary_data))
+    lol = Encode(image, binary_data, best_solution)
+    cv2.imshow('Hidden',lol)
+    cv2.imwrite('Hidden_lsb.png', lol)
+    diff = image - lol
+
+    cv2.imshow('Difference', diff)
+    recovered_data = Decode(lol, best_solution)
+
+    if(recovered_data == binary_data):
+        print('success')
+        secret_image_back = transform_bits_image(recovered_data, secret_width, secret_height, best_solution)
+        secret_image_back.save('reconstructed_image.png')
+        secret_image2 = cv2.imread('reconstructed_image.png')
+        cv2.imshow('Recovered', secret_image2)
+    cv2.waitKey(0) 
+
+def pso():
+    global secret_image
+    # Define the problem parameters
+    num_particles = 30
+    num_dimensions = 21  # Length of the binary chromosome
+    max_iterations = 100
+    c1 = 2.0  # Cognitive coefficient
+    c2 = 2.0  # Social coefficient
+    # Initialize the particles' positions and velocities
+    best_positions = []  # Best positions for each particle
+    global_best_position = None  # Global best position
     
-    # Selection: Roulette wheel selection
-    selected_parents = random.choices(population, weights=fitness_scores, k=population_size)
-    
-    # Crossover: One-point crossover
-    offspring = []
-    for i in range(0, population_size, 2):
-        parent1 = selected_parents[i]
-        parent2 = selected_parents[i + 1]
-        crossover_point = random.randint(1, 21 - 1)
-        offspring1 = parent1[:crossover_point] + parent2[crossover_point:]
-        offspring2 = parent2[:crossover_point] + parent1[crossover_point:]
-        offspring.extend([offspring1, offspring2])
+    particles = []
+    for _ in range(num_particles):
+        particle = [random.choice([0, 1]) for _ in range(num_dimensions)]
+        particles.append(particle)
+        best_positions.append(list(particle))
+        
+    velocities = []
+    for _ in range(num_particles):
+        velocity = [random.uniform(-1, 1) for _ in range(num_dimensions)]
+        velocities.append(velocity)
+    # PSO Loop
+    for iteration in range(max_iterations):
+        for i in range(num_particles):
+            # Evaluate the fitness of the current particle
+            fitness = fitness_function(particles[i])
 
-    # Mutation: Flip individual bits with a low probability
-    for i in range(population_size):
-        for j in range(21):
-            if random.random() < mutation_rate:
-                offspring[i] = offspring[i][:j] + ("0" if offspring[i][j] == "1" else "1") + offspring[i][j+1:]
+            # Update the best-known position for the particle
+            if fitness_function(best_positions[i]) < fitness:
+                best_positions[i] = list(particles[i])
 
-    # Replacement: Replace the old population with the offspring
-    population = offspring
+            # Update the global best position
+            if global_best_position is None or fitness_function(global_best_position) < fitness:
+                global_best_position = list(particles[i])
 
-# Print the best solution found
-best_solution = max(population, key=fitness_function)
-print("Best solution:", best_solution, "PSNR : ", fitness_function(best_solution))
-binary_data = transform_secret_image(secret_image, best_solution)
-print(len(binary_data))
-lol = Encode(image, binary_data, best_solution)
-cv2.imshow('Hidden',lol)
-cv2.imwrite('Hidden_lsb.png', lol)
-diff = image - lol
+            # Update the particle's velocity and position
+            for j in range(num_dimensions):
+                r1, r2 = random.random(), random.random()
+                cognitive_component = c1 * r1 * (best_positions[i][j] - particles[i][j])
+                social_component = c2 * r2 * (global_best_position[j] - particles[i][j])
+                velocities[i][j] = velocities[i][j] + cognitive_component + social_component
+                # Update the particle's position (using binary update)
+                particles[i][j] = 1 if random.random() < 1 / (1 + 2.7**(-velocities[i][j])) else 0
+    best_particle = ["1" if x == 1 else "0" for x in global_best_position]
+    best_particle = ''.join(best_particle)
+    print("Best solution:", best_particle, "PSNR : ", fitness_function(best_particle))
+    binary_data = transform_secret_image(secret_image, best_particle)
+    print(len(binary_data))
+    lol = Encode(image, binary_data, best_particle)
+    cv2.imshow('Hidden',lol)
+    cv2.imwrite('Hidden_lsb.png', lol)
+    diff = image - lol
 
-cv2.imshow('Difference', diff)
-recovered_data = Decode(lol, best_solution)
+    cv2.imshow('Difference', diff)
+    recovered_data = Decode(lol, best_particle)
 
-if(recovered_data == binary_data):
-    print('success')
-    secret_image_back = transform_bits_image(recovered_data, secret_width, secret_height, best_solution)
-    secret_image_back.save('reconstructed_image.png')
-    secret_image2 = cv2.imread('reconstructed_image.png')
-    cv2.imshow('Recovered', secret_image2)
-cv2.waitKey(0) 
+    if(recovered_data == binary_data):
+        print('success')
+        secret_image_back = transform_bits_image(recovered_data, secret_width, secret_height, global_best_position)
+        secret_image_back.save('reconstructed_image.png')
+        secret_image2 = cv2.imread('reconstructed_image.png')
+        cv2.imshow('Recovered', secret_image2)
+    cv2.waitKey(0) 
+pso()
+        
