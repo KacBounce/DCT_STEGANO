@@ -5,9 +5,13 @@ import cv2
 
 delimiter = '##END'
 delimiter = ''.join(format(ord(char), '08b') for char in delimiter)
-image = cv2.imread('Lenna(test_image).png', 0)
-img = Image.open('Secret Lenna.png', 'r')
-img = img.convert('L')
+image = cv2.imread('lenna(test_image).png', 0)
+
+
+
+secret_image = Image.open('Secret Lenna.png', 'r')
+secret_width, secret_height = secret_image.size
+secret_image = secret_image.convert('L')
 
 def create_chromosome():        
     chromosome = random.randint(0,2097152)
@@ -17,8 +21,8 @@ def create_chromosome():
     return binary_chromosome
 
 
-def transform_secret_image(img, binary_chromosome):
-    binary_data = ''.join(format(pixel, '08b') for pixel in img.tobytes())
+def transform_secret_image(secret_image, binary_chromosome):
+    binary_data = ''.join(format(pixel, '08b') for pixel in secret_image.tobytes())
     if(binary_chromosome[1] == '1'):
         binary_data = ''.join('1' if bit == '0' else '0' for bit in binary_data)
     if(binary_chromosome[0] == '1'):
@@ -29,7 +33,7 @@ def transform_bits_image(binary_data, width, height, binary_chromosome):
     mode = 'L'  # Grayscale mode 
 
     # Create an empty image
-    img = Image.new(mode, (width, height))
+    secret_image = Image.new(mode, (width, height))
     
     if(binary_chromosome[1] == '1'):
         binary_data = ''.join('1' if bit == '0' else '0' for bit in binary_data)
@@ -38,8 +42,8 @@ def transform_bits_image(binary_data, width, height, binary_chromosome):
 
     # Parse the list of bits and set pixel values
     pixels = [int(binary_data[i:i+8], 2) for i in range(0, len(binary_data), 8)]
-    img.putdata(pixels)
-    return img
+    secret_image.putdata(pixels)
+    return secret_image
 
 
 def hide_bit(value, bit):
@@ -54,6 +58,7 @@ def hide_bit(value, bit):
 def Encode(host, binary_message, binary_chromosome):
     global delimiter
     height, width = host.shape
+    transformed = host.copy()
     index = 0
     index2 = 0
     #first direction
@@ -61,90 +66,90 @@ def Encode(host, binary_message, binary_chromosome):
         for h in range(int(binary_chromosome[2:10], 2), height):
             for w in range(int(binary_chromosome[10:18], 2), width):                       
                 if (index < len(binary_message)):
-                    host[h][w] = hide_bit(host[h][w], binary_message[index])
+                    transformed[h][w] = hide_bit(transformed[h][w], binary_message[index])
                     index += 1
                 elif (index < len(binary_message) + len(delimiter)):
                     if(index2 < len(delimiter)):
-                        host[h][w] = hide_bit(host[h][w], delimiter[index2])
+                        transformed[h][w] = hide_bit(transformed[h][w], delimiter[index2])
                         index2 += 1
     #second direction
     elif (binary_chromosome[18:21]== "001"):
         for w in range(int(binary_chromosome[10:18], 2), width):
             for h in range(int(binary_chromosome[2:10], 2), height):               
                 if (index < len(binary_message)):
-                    host[h][w] = hide_bit(host[h][w], binary_message[index])
+                    transformed[h][w] = hide_bit(transformed[h][w], binary_message[index])
                     index += 1
                 elif (index < len(binary_message) + len(delimiter)):
                     if(index2 < len(delimiter)):
-                        host[h][w] = hide_bit(host[h][w], delimiter[index2])
+                        transformed[h][w] = hide_bit(transformed[h][w], delimiter[index2])
                         index2 += 1
     #third direction
     elif (binary_chromosome[18:21]== "010"):
         for h in range(int(binary_chromosome[2:10], 2), height):
             for w in range(width - 1 - int(binary_chromosome[10:18], 2), 0, -1):            
                 if (index < len(binary_message)):
-                    host[h][w] = hide_bit(host[h][w], binary_message[index])
+                    transformed[h][w] = hide_bit(transformed[h][w], binary_message[index])
                     index += 1
                 elif (index < len(binary_message) + len(delimiter)):
                     if(index2 < len(delimiter)):
-                        host[h][w] = hide_bit(host[h][w], delimiter[index2])
+                        transformed[h][w] = hide_bit(transformed[h][w], delimiter[index2])
                         index2 += 1
     #fourth direction
     elif (binary_chromosome[18:21]== "011"):
         for w in range(width - 1 - int(binary_chromosome[10:18], 2), 0, -1):
             for h in range(int(binary_chromosome[2:10], 2), height):             
                 if (index < len(binary_message)):
-                    host[h][w] = hide_bit(host[h][w], binary_message[index])
+                    transformed[h][w] = hide_bit(transformed[h][w], binary_message[index])
                     index += 1
                 elif (index < len(binary_message) + len(delimiter)):
                     if(index2 < len(delimiter)):
-                        host[h][w] = hide_bit(host[h][w], delimiter[index2])
+                        transformed[h][w] = hide_bit(transformed[h][w], delimiter[index2])
                         index2 += 1
     #fifth direction
     elif (binary_chromosome[18:21]== "100"): 
          for w in range(width - 1 - int(binary_chromosome[10:18], 2), 0, -1):
             for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1):             
                 if (index < len(binary_message)):
-                    host[h][w] = hide_bit(host[h][w], binary_message[index])
+                    transformed[h][w] = hide_bit(transformed[h][w], binary_message[index])
                     index += 1
                 elif (index < len(binary_message) + len(delimiter)):
                     if(index2 < len(delimiter)):
-                        host[h][w] = hide_bit(host[h][w], delimiter[index2])
+                        transformed[h][w] = hide_bit(transformed[h][w], delimiter[index2])
                         index2 += 1
     #sixth direction
     elif (binary_chromosome[18:21]== "101"):
         for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1):
             for w in range(width- 1 - int(binary_chromosome[10:18], 2), 0, -1):              
                 if (index < len(binary_message)):
-                    host[h][w] = hide_bit(host[h][w], binary_message[index])
+                    transformed[h][w] = hide_bit(transformed[h][w], binary_message[index])
                     index += 1
                 elif (index < len(binary_message) + len(delimiter)):
                     if(index2 < len(delimiter)):
-                        host[h][w] = hide_bit(host[h][w], delimiter[index2])
+                        transformed[h][w] = hide_bit(transformed[h][w], delimiter[index2])
                         index2 += 1
     #seventh direction
     elif (binary_chromosome[18:21]== "110"):
         for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1): 
             for w in range(int(binary_chromosome[10:18], 2), width):
                 if (index < len(binary_message)):
-                    host[h][w] = hide_bit(host[h][w], binary_message[index])
+                    transformed[h][w] = hide_bit(transformed[h][w], binary_message[index])
                     index += 1
                 elif (index < len(binary_message) + len(delimiter)):
                     if(index2 < len(delimiter)):
-                        host[h][w] = hide_bit(host[h][w], delimiter[index2])
+                        transformed[h][w] = hide_bit(transformed[h][w], delimiter[index2])
                         index2 += 1
     #eigth direction
     elif (binary_chromosome[18:21]== "111"):
         for w in range(int(binary_chromosome[10:18], 2), width):
             for h in range(height - 1 - int(binary_chromosome[2:10], 2), 0, -1):        
                 if (index < len(binary_message)):
-                    host[h][w] = hide_bit(host[h][w], binary_message[index])
+                    transformed[h][w] = hide_bit(transformed[h][w], binary_message[index])
                     index += 1
                 elif (index < len(binary_message) + len(delimiter)):
                     if(index2 < len(delimiter)):
-                        host[h][w] = hide_bit(host[h][w], delimiter[index2])
+                        transformed[h][w] = hide_bit(transformed[h][w], delimiter[index2])
                         index2 += 1
-    return host                    
+    return transformed                    
 
 def Decode(host, binary_chromosome):
     global delimiter
@@ -237,11 +242,11 @@ def Decode(host, binary_chromosome):
 
 # binary_chromosome = create_chromosome()
 # image = cv2.imread('Lenna(test_image).png', 0)
-# #img = Image.open('Lenna(test_image).png', 'r')
-# img = Image.open('Secret Lenna.png', 'r')
-# array = np.array(list(img.getdata()))
-# img = img.convert('L')
-# binary_data = transform_secret_image(img, binary_chromosome)
+# #secret_image = Image.open('Lenna(test_image).png', 'r')
+# secret_image = Image.open('Secret Lenna.png', 'r')
+# array = np.array(list(secret_image.getdata()))
+# secret_image = secret_image.convert('L')
+# binary_data = transform_secret_image(secret_image, binary_chromosome)
 
 # lol = Encode(image, binary_data, binary_chromosome)
 # cv2.imshow('Hidden',lol)
@@ -249,18 +254,17 @@ def Decode(host, binary_chromosome):
 # print(cv2.PSNR(image, image))
 # recovered_data = Decode(lol,  binary_chromosome)
 
-# img_back = transform_bits_image(recovered_data, 100, 100, binary_chromosome)
-# img_back.save('reconstructed_image.png')
-# img2 = cv2.imread('reconstructed_image.png')
-# cv2.imshow('Recovered', img2) 
-
+# secret_image_back = transform_bits_image(recovered_data, 100, 100, binary_chromosome)
+# secret_image_back.save('reconstructed_image.png')
+# secret_image2 = cv2.imread('reconstructed_image.png')
+# cv2.imshow('Recovered', secret_image2) 
 
 
 def fitness_function(binary_chromosome):
-    global image, img
-    binary_data = transform_secret_image(img, binary_chromosome)
-    lol = Encode(image, binary_data, binary_chromosome)
-    return cv2.PSNR(image, lol)
+    global image, secret_image
+    binary_data = transform_secret_image(secret_image, binary_chromosome)
+    secret = Encode(image, binary_data, binary_chromosome)
+    return cv2.PSNR(image, secret) 
       
 # Genetic Algorithm parameters
 population_size = 50
@@ -299,9 +303,11 @@ for generation in range(num_generations):
 # Print the best solution found
 best_solution = max(population, key=fitness_function)
 print("Best solution:", best_solution, "PSNR : ", fitness_function(best_solution))
-binary_data = transform_secret_image(img, best_solution)
+binary_data = transform_secret_image(secret_image, best_solution)
+print(len(binary_data))
 lol = Encode(image, binary_data, best_solution)
 cv2.imshow('Hidden',lol)
+cv2.imwrite('Hidden_lsb.png', lol)
 diff = image - lol
 
 cv2.imshow('Difference', diff)
@@ -309,8 +315,8 @@ recovered_data = Decode(lol, best_solution)
 
 if(recovered_data == binary_data):
     print('success')
-    img_back = transform_bits_image(recovered_data, 100, 100, best_solution)
-    img_back.save('reconstructed_image.png')
-    img2 = cv2.imread('reconstructed_image.png')
-    cv2.imshow('Recovered', img2)
+    secret_image_back = transform_bits_image(recovered_data, secret_width, secret_height, best_solution)
+    secret_image_back.save('reconstructed_image.png')
+    secret_image2 = cv2.imread('reconstructed_image.png')
+    cv2.imshow('Recovered', secret_image2)
 cv2.waitKey(0) 
